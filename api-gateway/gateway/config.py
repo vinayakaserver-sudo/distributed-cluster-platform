@@ -10,11 +10,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Control plane
-    CONTROL_PLANE_URL: str = "http://localhost:8000"
+    CONTROL_PLANE_URL: str = "https://distributed-cluster-platform.onrender.com"
     CONTROL_PLANE_API_KEY: str = ""  # Gateway's own API key for the control plane
 
     # JWT (same secret as control plane for token validation)
-    JWT_SECRET: str = "change-me-in-production"
+    JWT_SECRET: str = "super-cluster-secret-998877"
     JWT_ALGORITHM: str = "HS256"
 
     # Gateway
@@ -22,11 +22,11 @@ class Settings(BaseSettings):
     GATEWAY_PORT: int = 9000
 
     # Node URLs - populated dynamically from control plane, but can be overridden
-    NODE_1_URL: str = "http://localhost:8001"  # primary_db
-    NODE_2_URL: str = "http://localhost:8002"  # replica_db
-    NODE_3_URL: str = "http://localhost:8003"  # auth
-    NODE_4_URL: str = "http://localhost:8004"  # file_storage
-    NODE_5_URL: str = "http://localhost:8005"  # cache_search
+    NODE_1_URL: str = "https://cluster-node-1.onrender.com"  # primary_db
+    NODE_2_URL: str = "https://cluster-node-2.onrender.com"  # replica_db
+    NODE_3_URL: str = "https://cluster-node-3.onrender.com"  # auth
+    NODE_4_URL: str = "https://cluster-node-4.onrender.com"  # file_storage
+    NODE_5_URL: str = "https://cluster-node-5.onrender.com"  # cache_search
 
     # Load balancing
     HEALTH_CHECK_INTERVAL: int = 15  # seconds

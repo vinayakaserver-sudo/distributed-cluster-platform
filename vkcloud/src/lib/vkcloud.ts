@@ -3,6 +3,14 @@ import type { DeveloperUser, StorageFile, AuthAppUser, ProjectStats } from "../t
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || "https://cluster-api-gateway.onrender.com";
 const CONTROL_PLANE_URL = process.env.NEXT_PUBLIC_CONTROL_PLANE_URL || "https://distributed-cluster-platform.onrender.com";
 
+const DIRECT_NODE_MAP: Record<string, string> = {
+  auth: "https://cluster-node-3.onrender.com",
+  files: "https://cluster-node-4.onrender.com",
+  db: "https://cluster-node-1.onrender.com",
+  cache: "https://cluster-node-5.onrender.com",
+  search: "https://cluster-node-5.onrender.com",
+};
+
 export class VKCloudClient {
   private get token(): string | null {
     if (typeof window !== "undefined") {
@@ -21,10 +29,30 @@ export class VKCloudClient {
       headers["Authorization"] = `Bearer ${this.token}`;
     }
 
-    const url = endpoint.startsWith("http") ? endpoint : `${GATEWAY_URL}${endpoint}`;
-    const res = await fetch(url, { ...options, headers });
+    // Determine primary URL and fallback direct node URL
+    const prefix = endpoint.replace(/^\//, "").split("/")[0];
+    const directBase = DIRECT_NODE_MAP[prefix];
+    
+    // First try via Gateway (or full URL if already specified)
+    const primaryUrl = endpoint.startsWith("http") ? endpoint : `${GATEWAY_URL}${endpoint}`;
+    
+    try {
+      const res = await fetch(primaryUrl, { ...options, headers });
+      if (res.ok) {
+        if (res.status === 204) return {} as T;
+        return res.json();
+      }
+      
+      // If error returned from gateway, try direct node if available
+      if (directBase && !endpoint.startsWith("http")) {
+        const directUrl = `${directBase}${endpoint}`;
+        const fallbackRes = await fetch(directUrl, { ...options, headers });
+        if (fallbackRes.ok) {
+          if (fallbackRes.status === 204) return {} as T;
+          return fallbackRes.json();
+        }
+      }
 
-    if (!res.ok) {
       const errText = await res.text().catch(() => res.statusText);
       let errMsg = errText;
       try {
@@ -32,16 +60,29 @@ export class VKCloudClient {
         errMsg = parsed.detail || parsed.message || errText;
       } catch {}
       throw new Error(errMsg || `Request failed with status ${res.status}`);
+    } catch (networkError: any) {
+      // If gateway is down / cold-starting, seamlessly fallback to direct cloud node!
+      if (directBase && !endpoint.startsWith("http")) {
+        const directUrl = `${directBase}${endpoint}`;
+        try {
+          const directRes = await fetch(directUrl, { ...options, headers });
+          if (directRes.ok) {
+            if (directRes.status === 204) return {} as T;
+            return directRes.json();
+          }
+          const errText = await directRes.text().catch(() => directRes.statusText);
+          throw new Error(errText);
+        } catch (directErr: any) {
+          throw new Error(`Cloud service connecting (free-tier cold start). Please retry in 10s. (${directErr.message})`);
+        }
+      }
+      throw networkError;
     }
-
-    if (res.status === 204) return {} as T;
-    return res.json();
   }
 
   // ─── Developer Authentication ──────────────────────────────────────────────
   async register(username: string, email: string, password: string): Promise<DeveloperUser> {
-    // Uses Node 3 (Auth service via Gateway)
-    const res = await this.request<{ user_id: string; username: string; email: string }>("/auth/register", {
+    await this.request<{ user_id: string; username: string; email: string }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ username, email, password }),
     });
@@ -112,7 +153,6 @@ export class VKCloudClient {
       const res = await this.request<{ tables: string[] }>("/db/tables");
       return res.tables || [];
     } catch {
-      // Fallback SQL query if direct route is simple
       const sql = "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';";
       const q = await this.runQuery(sql);
       return q.rows.map((r: any) => r.table_name || r.TABLE_NAME);
@@ -149,18 +189,28 @@ export class VKCloudClient {
       headers["Authorization"] = `Bearer ${this.token}`;
     }
 
-    const res = await fetch(`${GATEWAY_URL}/files/upload`, {
+    try {
+      const res = await fetch(`${GATEWAY_URL}/files/upload`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+      if (res.ok) return res.json();
+    } catch {}
+
+    // Fallback direct to Node 4
+    const directRes = await fetch("https://cluster-node-4.onrender.com/files/upload", {
       method: "POST",
       headers,
       body: formData,
     });
 
-    if (!res.ok) {
-      const err = await res.text();
+    if (!directRes.ok) {
+      const err = await directRes.text();
       throw new Error(`Upload failed: ${err}`);
     }
 
-    return res.json();
+    return directRes.json();
   }
 
   async listFiles(): Promise<StorageFile[]> {
@@ -172,7 +222,7 @@ export class VKCloudClient {
   }
 
   getFileDownloadUrl(fileId: string): string {
-    return `${GATEWAY_URL}/files/${fileId}`;
+    return `https://cluster-node-4.onrender.com/files/${fileId}`;
   }
 
   // ─── Cache & Search Studio ─────────────────────────────────────────────────

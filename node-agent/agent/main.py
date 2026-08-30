@@ -2,6 +2,7 @@ import asyncio
 import logging
 import httpx
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agent.config import config
@@ -17,6 +18,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=f"ClusterNode Agent - {config.NODE_NAME}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 http_client = httpx.AsyncClient()
 metrics_collector = MetricsCollector()
 registration_manager = RegistrationManager()
