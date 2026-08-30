@@ -1,0 +1,216 @@
+# ClusterControl - Local Development Docker Compose
+# Starts all 8 services: control-plane, dashboard, api-gateway, and 5 node agents
+#
+# Usage:
+#   docker-compose up --build           # Start all services
+#   docker-compose up control-plane     # Start only control plane
+#   docker-compose logs -f node-1       # Follow logs for node-1
+#   docker-compose restart node-3       # Restart auth node
+#   docker-compose down -v              # Stop and remove volumes
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Shared environment variables
+# ---------------------------------------------------------------------------
+x-common-env: &common-env
+  JWT_SECRET: ${JWT_SECRET:-super-secret-dev-key-change-in-prod}
+  CONTROL_PLANE_URL: http://control-plane:8000
+
+x-node-base: &node-base
+  build:
+    context: ./node-agent
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  networks:
+    - cluster-net
+  depends_on:
+    control-plane:
+      condition: service_healthy
+  environment:
+    <<: *common-env
+    HEARTBEAT_INTERVAL: "10"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  cluster-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  control-plane-db:
+  node-1-data:
+  node-2-data:
+  node-3-data:
+  node-4-data:
+  node-5-data:
+  node-5-cache:
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ── Control Plane ─────────────────────────────────────────────────────────
+  control-plane:
+    build:
+      context: ./control-plane
+      dockerfile: Dockerfile
+    container_name: cluster-control-plane
+    restart: unless-stopped
+    networks:
+      - cluster-net
+    ports:
+      - "8000:8000"
+    volumes:
+      - control-plane-db:/app/data
+    environment:
+      <<: *common-env
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      HEARTBEAT_TIMEOUT_SECONDS: "30"
+      METRICS_RETENTION_HOURS: "24"
+      DATABASE_URL: sqlite+aiosqlite:////app/data/cluster.db
+      CORS_ORIGINS: '["http://localhost:3000","http://dashboard:3000"]'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: cluster-dashboard
+    restart: unless-stopped
+    networks:
+      - cluster-net
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - control-plane
+
+  # ── API Gateway ───────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: cluster-api-gateway
+    restart: unless-stopped
+    networks:
+      - cluster-net
+    ports:
+      - "9000:9000"
+    environment:
+      <<: *common-env
+      NODE_1_URL: http://node-1:8001
+      NODE_2_URL: http://node-2:8002
+      NODE_3_URL: http://node-3:8003
+      NODE_4_URL: http://node-4:8004
+      NODE_5_URL: http://node-5:8005
+    depends_on:
+      control-plane:
+        condition: service_healthy
+
+  # ── Node 1: Primary Database ───────────────────────────────────────────────
+  node-1:
+    <<: *node-base
+    container_name: cluster-node-1
+    ports:
+      - "8001:8001"
+    volumes:
+      - node-1-data:/app/data
+    environment:
+      <<: *common-env
+      NODE_NAME: node-1-primary-db
+      NODE_TYPE: primary_db
+      NODE_HOST: node-1
+      NODE_PORT: "8001"
+      NODE_REGION: local
+      DATABASE_URL: ${NODE1_DATABASE_URL:-}
+    command: ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+  # ── Node 2: Replica Database ──────────────────────────────────────────────
+  node-2:
+    <<: *node-base
+    container_name: cluster-node-2
+    ports:
+      - "8002:8001"
+    volumes:
+      - node-2-data:/app/data
+    environment:
+      <<: *common-env
+      NODE_NAME: node-2-replica-db
+      NODE_TYPE: replica_db
+      NODE_HOST: node-2
+      NODE_PORT: "8001"
+      NODE_REGION: local
+      DATABASE_URL: ${NODE2_DATABASE_URL:-}
+      PRIMARY_DB_URL: http://node-1:8001
+    command: ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+  # ── Node 3: Auth Service ──────────────────────────────────────────────────
+  node-3:
+    <<: *node-base
+    container_name: cluster-node-3
+    ports:
+      - "8003:8001"
+    volumes:
+      - node-3-data:/app/data
+    environment:
+      <<: *common-env
+      NODE_NAME: node-3-auth
+      NODE_TYPE: auth
+      NODE_HOST: node-3
+      NODE_PORT: "8001"
+      NODE_REGION: local
+    command: ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+  # ── Node 4: File Storage ──────────────────────────────────────────────────
+  node-4:
+    <<: *node-base
+    container_name: cluster-node-4
+    ports:
+      - "8004:8001"
+    volumes:
+      - node-4-data:/app/data
+    environment:
+      <<: *common-env
+      NODE_NAME: node-4-file-storage
+      NODE_TYPE: file_storage
+      NODE_HOST: node-4
+      NODE_PORT: "8001"
+      NODE_REGION: local
+      DATA_DIR: /app/data/files
+    command: ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+  # ── Node 5: Cache / Search / Background Jobs ──────────────────────────────
+  node-5:
+    <<: *node-base
+    container_name: cluster-node-5
+    ports:
+      - "8005:8001"
+    volumes:
+      - node-5-data:/app/data
+      - node-5-cache:/app/cache
+    environment:
+      <<: *common-env
+      NODE_NAME: node-5-cache-search
+      NODE_TYPE: cache_search
+      NODE_HOST: node-5
+      NODE_PORT: "8001"
+      NODE_REGION: local
+      CACHE_DIR: /app/cache
+    command: ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8001"]

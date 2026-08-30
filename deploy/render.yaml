@@ -1,0 +1,239 @@
+# Render.com Blueprint - ClusterControl Distributed System
+# Deploy all services to Render free tier
+#
+# Usage:
+#   1. Push this repo to GitHub
+#   2. Go to render.com → New → Blueprint
+#   3. Connect your repo and select this file
+#   4. Set the environment variables marked as "sync: false"
+
+services:
+
+  # ── Control Plane ─────────────────────────────────────────────────────────
+  - type: web
+    name: cluster-control-plane
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: control-plane
+    plan: free
+    healthCheckPath: /api/v1/cluster/health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: HEARTBEAT_TIMEOUT_SECONDS
+        value: "45"
+      - key: METRICS_RETENTION_HOURS
+        value: "24"
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./cluster.db
+      - key: CORS_ORIGINS
+        value: '["*"]'
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+  - type: web
+    name: cluster-dashboard
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: node .next/standalone/server.js
+    rootDir: dashboard
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+
+  # ── API Gateway ───────────────────────────────────────────────────────────
+  - type: web
+    name: cluster-api-gateway
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn gateway.main:app --host 0.0.0.0 --port $PORT
+    rootDir: api-gateway
+    plan: free
+    healthCheckPath: /gateway/health
+    envVars:
+      - key: JWT_SECRET
+        fromService:
+          name: cluster-control-plane
+          type: web
+          envVarKey: JWT_SECRET
+      - key: CONTROL_PLANE_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+      - key: NODE_1_URL
+        fromService:
+          name: cluster-node-1
+          type: web
+          property: url
+      - key: NODE_2_URL
+        fromService:
+          name: cluster-node-2
+          type: web
+          property: url
+      - key: NODE_3_URL
+        fromService:
+          name: cluster-node-3
+          type: web
+          property: url
+      - key: NODE_4_URL
+        fromService:
+          name: cluster-node-4
+          type: web
+          property: url
+      - key: NODE_5_URL
+        fromService:
+          name: cluster-node-5
+          type: web
+          property: url
+
+  # ── Node 1: Primary Database ───────────────────────────────────────────────
+  - type: web
+    name: cluster-node-1
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agent.main:app --host 0.0.0.0 --port $PORT
+    rootDir: node-agent
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_NAME
+        value: node-1-primary-db
+      - key: NODE_TYPE
+        value: primary_db
+      - key: NODE_REGION
+        value: render-us-oregon
+      - key: CONTROL_PLANE_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+      - key: JWT_SECRET
+        fromService:
+          name: cluster-control-plane
+          type: web
+          envVarKey: JWT_SECRET
+      - key: DATABASE_URL
+        sync: false  # Set this to your Neon PostgreSQL URL
+
+  # ── Node 2: Replica Database ──────────────────────────────────────────────
+  - type: web
+    name: cluster-node-2
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agent.main:app --host 0.0.0.0 --port $PORT
+    rootDir: node-agent
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_NAME
+        value: node-2-replica-db
+      - key: NODE_TYPE
+        value: replica_db
+      - key: NODE_REGION
+        value: render-us-oregon
+      - key: CONTROL_PLANE_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+      - key: JWT_SECRET
+        fromService:
+          name: cluster-control-plane
+          type: web
+          envVarKey: JWT_SECRET
+      - key: DATABASE_URL
+        sync: false  # Set this to your replica Neon PostgreSQL URL
+
+  # ── Node 3: Auth Service ──────────────────────────────────────────────────
+  - type: web
+    name: cluster-node-3
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agent.main:app --host 0.0.0.0 --port $PORT
+    rootDir: node-agent
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_NAME
+        value: node-3-auth
+      - key: NODE_TYPE
+        value: auth
+      - key: NODE_REGION
+        value: render-us-oregon
+      - key: CONTROL_PLANE_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+      - key: JWT_SECRET
+        fromService:
+          name: cluster-control-plane
+          type: web
+          envVarKey: JWT_SECRET
+
+  # ── Node 4: File Storage ──────────────────────────────────────────────────
+  - type: web
+    name: cluster-node-4
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agent.main:app --host 0.0.0.0 --port $PORT
+    rootDir: node-agent
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_NAME
+        value: node-4-file-storage
+      - key: NODE_TYPE
+        value: file_storage
+      - key: NODE_REGION
+        value: render-us-oregon
+      - key: CONTROL_PLANE_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+      - key: JWT_SECRET
+        fromService:
+          name: cluster-control-plane
+          type: web
+          envVarKey: JWT_SECRET
+      - key: DATA_DIR
+        value: /tmp/files
+
+  # ── Node 5: Cache / Search / Jobs ─────────────────────────────────────────
+  - type: web
+    name: cluster-node-5
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agent.main:app --host 0.0.0.0 --port $PORT
+    rootDir: node-agent
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_NAME
+        value: node-5-cache-search
+      - key: NODE_TYPE
+        value: cache_search
+      - key: NODE_REGION
+        value: render-us-oregon
+      - key: CONTROL_PLANE_URL
+        fromService:
+          name: cluster-control-plane
+          type: web
+          property: url
+      - key: JWT_SECRET
+        fromService:
+          name: cluster-control-plane
+          type: web
+          envVarKey: JWT_SECRET
+      - key: CACHE_DIR
+        value: /tmp/cache

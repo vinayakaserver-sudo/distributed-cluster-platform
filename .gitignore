@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Node / Next.js
+node_modules/
+.next/
+.turbo/
+out/
+build/
+
+# Environment files (NEVER commit these!)
+.env
+.env.local
+.env.production
+.env.staging
+# Keep examples
+!.env.example
+!.env.local.example
+
+# Agent state (contains API keys)
+agent_state.json
+agent_state_*.json
+
+# Data directories (runtime-generated)
+node-agent/data/
+node-agent/cache/
+control-plane/data/
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Render
+.render-builddir/
