@@ -109,18 +109,18 @@ export default function LandingPage() {
 
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {/* Feature 1 */}
-          <div className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10">
+          <div id="database" className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 mb-4">
               <Database className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-bold text-white">PostgreSQL Database</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Instant serverless PostgreSQL powered by Neon. Run raw SQL, create dynamic tables, and enjoy primary & replica failover.
+              Instant serverless PostgreSQL powered by Neon. Run raw SQL, create dynamic tables, and enjoy primary & replica failover with isolated schemas per developer.
             </p>
           </div>
 
           {/* Feature 2 */}
-          <div className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10">
+          <div id="auth" className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 mb-4">
               <Users className="h-6 w-6" />
             </div>
@@ -131,18 +131,18 @@ export default function LandingPage() {
           </div>
 
           {/* Feature 3 */}
-          <div className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10">
+          <div id="storage" className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 mb-4">
               <FolderOpen className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-bold text-white">Permanent Object Storage</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Upload images, videos, and files directly to your cloud storage. Instant preview links and permanent cloud retention.
+              Upload images, videos, and files directly to your cloud storage. Instant preview links and permanent cloud retention with zero egress fees.
             </p>
           </div>
 
           {/* Feature 4 */}
-          <div className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10">
+          <div id="cache" className="rounded-2xl border border-border bg-card p-6 transition-all hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 mb-4">
               <Zap className="h-6 w-6" />
             </div>
