@@ -33,7 +33,7 @@ class HeartbeatSender:
                 "X-Node-Id": self.config.NODE_ID
             }
 
-            response = await self.http_client.post(url, headers=headers, json=payload.model_dump(mode="json"))
+            response = await self.http_client.post(url, headers=headers, json=payload.model_dump(mode="json"), timeout=10.0)
             response.raise_for_status()
 
             data = HeartbeatResponse.model_validate(response.json())

@@ -27,11 +27,12 @@ class MetricsCollector:
 
     def measure_latency(self, url: str) -> float:
         try:
+            target = f"{url.rstrip('/')}/api/v1/cluster/health"
             start_time = time.perf_counter()
-            response = httpx.get(url, timeout=2.0)
+            response = httpx.get(target, timeout=5.0)
             end_time = time.perf_counter()
             if response.status_code == 200:
-                return (end_time - start_time) * 1000
+                return round((end_time - start_time) * 1000, 2)
         except Exception:
             pass
-        return -1.0
+        return 0.0
