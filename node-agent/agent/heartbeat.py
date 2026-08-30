@@ -38,6 +38,19 @@ class HeartbeatSender:
 
             data = HeartbeatResponse.model_validate(response.json())
             return data.pending_commands
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in (401, 404):
+                logger.warning(f"Node heartbeat returned {e.response.status_code}. Auto-re-registering node...")
+                try:
+                    from agent.registration import RegistrationManager
+                    reg = RegistrationManager()
+                    self.config.NODE_ID, self.config.API_KEY = await reg.register(self.config, self.http_client)
+                    logger.info(f"Re-registered successfully: {self.config.NODE_ID}")
+                except Exception as reg_err:
+                    logger.error(f"Auto-registration failed: {reg_err}")
+            else:
+                logger.error(f"Heartbeat HTTP error: {e}")
+            return []
         except Exception as e:
             logger.error(f"Failed to send heartbeat: {e}")
             return []
