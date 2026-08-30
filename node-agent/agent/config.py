@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     DATA_DIR: str = "./data"
     DATABASE_URL: str = ""
     CACHE_DIR: str = "./cache"
+    
+    # Cloudflare R2 / S3 Object Storage
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET_NAME: str = ""
+    R2_ENDPOINT_URL: str = ""
+    R2_PUBLIC_URL: str = ""
 
     class Config:
         env_file = ".env"
