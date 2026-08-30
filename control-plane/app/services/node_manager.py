@@ -13,6 +13,32 @@ class NodeManager:
     async def register_node(req: schemas.NodeRegisterRequest, session: AsyncSession) -> tuple[db.Node, str]:
         raw_key, key_hash = generate_api_key()
         
+        # Check if a node with the same name already exists
+        result = await session.execute(select(db.Node).where(db.Node.name == req.name))
+        existing_node = result.scalars().first()
+        
+        if existing_node:
+            existing_node.node_type = req.node_type.value
+            existing_node.status = schemas.NodeStatus.STARTING.value
+            existing_node.host = req.host
+            existing_node.port = req.port
+            existing_node.region = req.region
+            existing_node.version = req.version
+            existing_node.tags = json.dumps(req.tags)
+            
+            # Update or recreate ApiKey
+            key_result = await session.execute(select(db.ApiKey).where(db.ApiKey.node_id == existing_node.id))
+            api_key = key_result.scalars().first()
+            if api_key:
+                api_key.key_hash = key_hash
+            else:
+                session.add(db.ApiKey(node_id=existing_node.id, key_hash=key_hash))
+                
+            await session.commit()
+            await session.refresh(existing_node)
+            return existing_node, raw_key
+        
+        # Create new node if not found
         node = db.Node(
             name=req.name,
             node_type=req.node_type.value,
