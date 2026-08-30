@@ -12,7 +12,31 @@ import uuid
 
 router = APIRouter(prefix="/api/v1/nodes", tags=["nodes"])
 
-async def get_node_info(node: db.Node) -> schemas.NodeInfo:
+async def get_node_info(node: db.Node, session: Optional[AsyncSession] = None) -> schemas.NodeInfo:
+    metrics = None
+    if session:
+        result = await session.execute(
+            select(db.NodeMetric)
+            .where(db.NodeMetric.node_id == node.id)
+            .order_by(db.NodeMetric.recorded_at.desc())
+            .limit(1)
+        )
+        latest_m = result.scalars().first()
+        if latest_m:
+            metrics = schemas.NodeMetrics(
+                cpu_percent=latest_m.cpu_percent,
+                ram_percent=latest_m.ram_percent,
+                ram_used_mb=latest_m.ram_used_mb,
+                ram_total_mb=latest_m.ram_total_mb,
+                disk_percent=latest_m.disk_percent,
+                disk_used_gb=latest_m.disk_used_gb,
+                disk_total_gb=latest_m.disk_total_gb,
+                net_bytes_sent=latest_m.net_bytes_sent,
+                net_bytes_recv=latest_m.net_bytes_recv,
+                latency_ms=latest_m.latency_ms,
+                timestamp=latest_m.recorded_at
+            )
+
     return schemas.NodeInfo(
         node_id=node.id,
         name=node.name,
@@ -25,7 +49,7 @@ async def get_node_info(node: db.Node) -> schemas.NodeInfo:
         tags=json.loads(node.tags) if node.tags else {},
         last_heartbeat=node.last_heartbeat,
         registered_at=node.registered_at,
-        metrics=None,
+        metrics=metrics,
         service_status=json.loads(node.service_status) if node.service_status else {},
         errors=json.loads(node.errors) if node.errors else []
     )
@@ -53,14 +77,14 @@ async def register_node(
 @router.get("/", response_model=List[schemas.NodeInfo])
 async def list_nodes(session: AsyncSession = Depends(get_db), admin: str = Depends(get_current_admin)):
     nodes = await NodeManager.list_nodes(session)
-    return [await get_node_info(n) for n in nodes]
+    return [await get_node_info(n, session) for n in nodes]
 
 @router.get("/{node_id}", response_model=schemas.NodeInfo)
 async def get_node(node_id: str, session: AsyncSession = Depends(get_db), admin: str = Depends(get_current_admin)):
     node = await NodeManager.get_node(node_id, session)
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
-    return await get_node_info(node)
+    return await get_node_info(node, session)
 
 @router.delete("/{node_id}")
 async def delete_node(node_id: str, session: AsyncSession = Depends(get_db), admin: str = Depends(get_current_admin)):
