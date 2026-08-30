@@ -27,11 +27,11 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-muted-foreground">
-          <Link href="#database" className="transition-colors hover:text-white">Database</Link>
-          <Link href="#auth" className="transition-colors hover:text-white">Auth</Link>
-          <Link href="#storage" className="transition-colors hover:text-white">Storage</Link>
-          <Link href="#cache" className="transition-colors hover:text-white">Cache & Search</Link>
-          <Link href="#docs" className="transition-colors hover:text-white">Docs</Link>
+          <Link href="/docs#database" className="transition-colors hover:text-white">Database</Link>
+          <Link href="/docs#auth" className="transition-colors hover:text-white">Auth</Link>
+          <Link href="/docs#storage" className="transition-colors hover:text-white">Storage</Link>
+          <Link href="/docs#cache" className="transition-colors hover:text-white">Cache & Search</Link>
+          <Link href="/docs" className="transition-colors text-blue-400 font-semibold hover:text-blue-300">Docs</Link>
         </nav>
 
         <div className="flex items-center space-x-4">

@@ -5,7 +5,7 @@ import asyncio
 import logging
 from app.db import init_db, AsyncSessionLocal
 from app.config import settings
-from app.routers import auth, nodes, cluster, ws
+from app.routers import auth, nodes, cluster, ws, tenants
 from app.services.heartbeat_monitor import heartbeat_monitor
 from app.services.node_manager import NodeManager
 
@@ -26,6 +26,7 @@ app.include_router(auth.router)
 app.include_router(nodes.router)
 app.include_router(cluster.router)
 app.include_router(ws.router)
+app.include_router(tenants.router)
 
 async def purge_metrics_task():
     while True:

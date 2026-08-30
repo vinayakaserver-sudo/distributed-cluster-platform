@@ -69,6 +69,11 @@ export class ApiClient {
   // Cluster
   async getClusterStats(): Promise<ClusterStats> { return this.fetch<ClusterStats>('/api/v1/cluster/stats'); }
   async getClusterLogs(): Promise<LogEntry[]> { return this.fetch<LogEntry[]>('/api/v1/cluster/logs'); }
+
+  // Tenants & User Data Management
+  async getTenants(): Promise<any[]> { return this.fetch<any[]>('/api/v1/tenants'); }
+  async getTenantDetails(username: string): Promise<any> { return this.fetch<any>(`/api/v1/tenants/${username}`); }
+  async deleteTenant(username: string): Promise<any> { return this.fetch<any>(`/api/v1/tenants/${username}`, { method: 'DELETE' }); }
 }
 
 export const api = new ApiClient();

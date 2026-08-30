@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Server, Activity, HardDrive, FileText, Settings, LogOut } from 'lucide-react';
+import { Server, Activity, HardDrive, FileText, Settings, LogOut, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 
@@ -17,6 +17,7 @@ export function Sidebar() {
   const nav = [
     { name: 'Overview', href: '/dashboard', icon: Activity },
     { name: 'Nodes', href: '/dashboard/nodes', icon: HardDrive },
+    { name: 'Tenants & Data', href: '/dashboard/tenants', icon: Users },
     { name: 'Logs', href: '/dashboard/logs', icon: FileText },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
